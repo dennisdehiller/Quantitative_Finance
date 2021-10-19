@@ -34,15 +34,22 @@ def ex1(data):
 ex1(data)
 
 def ex2(data):
-    resids = pd.DataFrame()
+    # resids = pd.DataFrame(columns=data.iloc[:, 2:].columns)
+    variables = []
     for i in range(5):
         return_data = data[['mkt']].copy()
         return_data['ret'] = data.iloc[:, 2 + i]
 
         model = smf.ols("ret ~ mkt", data=return_data)
         result = model.fit()
-        resids.append(result.resid)
+        # print("ASSET", i + 1)
+        # print(result.params)
+        residual_std = result.resid.std()
+        variables.append([result.params[0], result.params[1], residual_std])
 
-
+    var_list = pd.DataFrame(variables)
+    var_list.columns = ['alpha', 'mkt_beta', 'sigma']
+    var_list.index = data.iloc[:, 2:].columns
+    print(var_list)
 
 ex2(data)
