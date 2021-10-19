@@ -24,12 +24,25 @@ def ex1(data):
 
     VaR = (-portfolio_my * portfolio_value) + (portfolio_sigma * portfolio_value * inv_dist_98)
 
-    print("Exercise 1")
-    # print ("My: ", portfolio_my)
-    # print ("Sigma: ", portfolio_sigma)
-    print('Value at risk:', VaR)
-    print(round(VaR / portfolio_value, 4) * 100, "%")
+    # print("Exercise 1")
+    # # print ("My: ", portfolio_my)
+    # # print ("Sigma: ", portfolio_sigma)
+    # print("Model 1")
+    # print('Value at risk:', VaR)
+    # print(round(VaR / portfolio_value, 4) * 100, "%")
 
 ex1(data)
 
+def ex2(data):
+    resids = pd.DataFrame()
+    for i in range(5):
+        return_data = data[['mkt']].copy()
+        return_data['ret'] = data.iloc[:, 2 + i]
 
+        model = smf.ols("ret ~ mkt", data=return_data)
+        result = model.fit()
+        resids.append(result.resid)
+
+
+
+ex2(data)
