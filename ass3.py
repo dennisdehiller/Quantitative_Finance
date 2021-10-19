@@ -24,6 +24,12 @@ def ex1(data):
 
     VaR = (-portfolio_my * portfolio_value) + (portfolio_sigma * portfolio_value * inv_dist_98)
 
+    print("Exercise 1")
     # print ("My: ", portfolio_my)
     # print ("Sigma: ", portfolio_sigma)
-    # print(VaR)
+    print('Value at risk:', VaR)
+    print(round(VaR / portfolio_value, 4) * 100, "%")
+
+ex1(data)
+
+
