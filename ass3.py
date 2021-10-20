@@ -3,6 +3,8 @@ import numpy as np
 from statistics import NormalDist
 import statsmodels.formula.api as smf
 import matplotlib.pyplot as plt
+from tqdm import tqdm
+from scipy.special import cbrt
 
 data = pd.read_excel('data_Ass3_G2.xlsx', sheet_name='Returns', engine='openpyxl').drop('date', 1)
 
@@ -21,11 +23,11 @@ def ex1(data):
 
     value_at_risk = (- portfolio_my * portfolio_value) + (portfolio_sigma * portfolio_value * inv_dist_98)
 
-    print("VaR_0.98:", round(value_at_risk, 1))
-    print(round(value_at_risk / portfolio_value, 4) * 100, "%")
+    print("VaR:", round(value_at_risk, 1))
+    print(round(value_at_risk / portfolio_value, 4) * 100, "%\n")
 
 
-ex1(data)
+# ex1(data)
 
 
 def ex2(data):
@@ -70,28 +72,72 @@ def ex2(data):
 
     portfolio_beta = var_matrix['mkt_beta'].mean()
     portfolio_alpha = var_matrix['alpha'].mean()
-    portfolio_sigma = (var_matrix['sigma'].pow(2).mean()) ** 0.5
+    portfolio_sigma = (((var_matrix['sigma'] * 0.2) ** 2).sum()) ** 0.5
 
     inv_dist_98 = NormalDist(0, 1).inv_cdf(0.98)
 
-    var_1 = -(portfolio_alpha + (market_my * portfolio_beta)) + (market_sigma * portfolio_beta * inv_dist_98)
+    potential_shock = (((market_sigma * portfolio_beta) ** 2 + portfolio_sigma ** 2) ** 0.5) * inv_dist_98
 
-    var_2 = - (portfolio_sigma * inv_dist_98)
-
-    val_at_risk = ((var_1 ** 2 + var_2 ** 2) ** 0.5) * 50000
-
-    print(val_at_risk)
+    var = (-(portfolio_alpha + (market_my * portfolio_beta)) + potential_shock) * 50000
 
     # MONTE CARLO
-    def day_returns(alpha, beta, sigma, market_my, market_sigma, runs):
+    def day_returns_MC(var_matrix, market_my, market_sigma, runs):
         asset_returns = []
-        for i in range(runs):
-            asset_returns.append(alpha + beta * np.random.normal(market_my, market_sigma) + np.random.normal(0, sigma))
-        return asset_returns
+        for i in tqdm(range(runs)):
+            returns = 0
+            market_ret = np.random.normal(market_my, market_sigma)
+            for i in range(5):
+                returns += 0.2 * (var_matrix.iloc[i, 0] + var_matrix.iloc[i, 1] * market_ret + np.random.normal(0, var_matrix.iloc[i, 2]))
+            asset_returns.append(returns)
 
-    monte_carlo_returns = np.array(day_returns(portfolio_alpha, portfolio_beta, portfolio_sigma, market_my, market_sigma, 10000000))
+        return np.array(asset_returns)
 
-    print(np.percentile(monte_carlo_returns, 2) * 50000)
+    print(np.percentile(day_returns_MC(var_matrix, market_my, market_sigma, 25000), 2) * 50000)
+    print(var)
 
 
-ex2(data)
+# ex2(data)
+
+
+def ex3(data):
+    return_market = data['mkt']
+    delta = return_market.std() * cbrt(return_market.skew() / 2)
+    omega = (return_market.var() - (delta ** 2)) ** 0.5
+    eta = return_market.mean() - delta
+
+    print("delta:", delta)
+    print("omega:", omega)
+    print("eta:", eta)
+
+    variables = []
+    for i in range(5):
+        return_data = data[['mkt']].copy()
+        return_data['ret'] = data.iloc[:, 2 + i]
+
+        model = smf.ols("ret ~ mkt", data=return_data)
+        result = model.fit()
+        residual_std = result.resid.std()
+        variables.append([result.params[0], result.params[1], residual_std])
+
+    var_matrix = pd.DataFrame(variables)
+    var_matrix.columns = ['alpha', 'mkt_beta', 'sigma']
+    var_matrix.index = data.iloc[:, 2:].columns
+
+    def day_returns_MC(var_matrix, runs):
+        asset_returns = []
+        for i in tqdm(range(runs)):
+            returns = 0
+            excess_return_mkt = eta + delta * np.random.exponential(1) + omega * np.random.normal(0, 1)
+            for i in range(5):
+                returns += 0.2 * (var_matrix.iloc[i, 0] + var_matrix.iloc[i, 1] * excess_return_mkt + np.random.normal(0, var_matrix.iloc[i, 2]))
+            asset_returns.append(returns)
+
+        return np.array(asset_returns)
+
+    print(np.percentile(day_returns_MC(var_matrix, 250000), 2) * 50000)
+
+
+ex3(data)
+
+def ex4(data):
+
